@@ -1,0 +1,15 @@
+host:
+  path: /
+  port: 8020
+
+log:
+  level: error
+
+db:
+  host: cdb-4h8fssav.gz.tencentcdb.com
+  port: 10131
+  user: root
+  password: 'e1fccbc149ab2449f413f63579c2d071ed77f1a12d4d1f5fe8a1a61a8089348b3204f6cb5bce'
+  dbname: stockv2
+  dialect: mysql
+  key: 'stock'

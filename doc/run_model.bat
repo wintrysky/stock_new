@@ -1,0 +1,1 @@
+rassecli db model --host cdb-4h8fssav.gz.tencentcdb.com --port 10131 --user root --pwd Cosfcoco00 --db stockv2 -t stock_basic,stock_user
