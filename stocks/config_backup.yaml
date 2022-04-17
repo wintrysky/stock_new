@@ -1,0 +1,15 @@
+host:
+  path: /
+  port: 8020
+
+log:
+  level: error
+
+db:
+  host: xxx
+  port: xxx
+  user: root
+  password: 'xxx'
+  dbname: xxx
+  dialect: mysql
+  key: 'xxx'
