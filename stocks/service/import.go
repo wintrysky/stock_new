@@ -1,9 +1,6 @@
 package service
 
 import (
-	"github.com/devfeel/mapper"
-	"github.com/gin-gonic/gin"
-	"github.com/guregu/null"
 	"strings"
 	"time"
 	"ww/stocks/global"
@@ -12,13 +9,16 @@ import (
 	"ww/stocks/utils"
 	"ww/stocks/utils/csv"
 	"ww/stocks/xerr"
+
+	"github.com/devfeel/mapper"
+	"github.com/gin-gonic/gin"
+	"github.com/guregu/null"
 )
 
 type ImportDataSrv struct {
-
 }
 
-func (c *ImportDataSrv) ImportData(ctx *gin.Context,importType,dateString string) (err error) {
+func (c *ImportDataSrv) ImportData(ctx *gin.Context, importType, dateString string) (err error) {
 	defer xerr.HandleErr(&err)
 
 	filePath := utils.LoadExcelToTempFolder(ctx)
@@ -32,9 +32,9 @@ func (c *ImportDataSrv) ImportData(ctx *gin.Context,importType,dateString string
 	isETF := ""
 	isHK := ""
 	isStar := ""
-	isOption :=""
+	isOption := ""
 	isYestodayHot := ""
-	tradeDate := time.Now().AddDate(0,0,-1)
+	tradeDate := time.Now().AddDate(0, 0, -1)
 	if dateString != "" {
 		tradeDate = utils.ParseShortTime(dateString)
 	}
@@ -53,7 +53,7 @@ func (c *ImportDataSrv) ImportData(ctx *gin.Context,importType,dateString string
 	case "bk": // block
 		isBlock = global.LogicY
 		sCols["is_block"] = "Y"
-		c.checkSymbolExits("BK2015",data)
+		c.checkSymbolExits("BK2015", data)
 		c.updateFlag("update stock_basic set is_block = ''")
 	case "hot":
 		isHot = global.LogicY
@@ -62,12 +62,12 @@ func (c *ImportDataSrv) ImportData(ctx *gin.Context,importType,dateString string
 	case "china":
 		isChina = global.LogicY
 		sCols["is_china"] = "Y"
-		c.checkSymbolExits("FUTU",data)
+		c.checkSymbolExits("FUTU", data)
 		c.updateFlag("update stock_basic set is_china = ''")
 	case "ETF":
 		isETF = global.LogicY
 		sCols["is_etf"] = "Y"
-		c.checkSymbolExits("TQQQ",data)
+		c.checkSymbolExits("TQQQ", data)
 		c.updateFlag("update stock_basic set is_etf = ''")
 	case "hk":
 		isHK = global.LogicY
@@ -86,14 +86,14 @@ func (c *ImportDataSrv) ImportData(ctx *gin.Context,importType,dateString string
 		sCols["is_yestoday_hot"] = "Y"
 		sCols["is_yestoday_hot_date"] = "is_yestoday_hot_date"
 	default:
-		xerr.ThrowErrorMessage("错误的类型:%s",importType)
+		xerr.ThrowErrorMessage("错误的类型:%s", importType)
 	}
 
 	var tempList []models.StockBasic
 	dt := time.Now()
-	for _,value := range data {
+	for _, value := range data {
 		var tmp models.StockBasic
-		mapper.MapperMap(value,&tmp)
+		mapper.MapperMap(value, &tmp)
 		tmp.CreateTime = dt
 		tmp.ID = 0
 		tmp.Currency = "USD"
@@ -129,35 +129,34 @@ func (c *ImportDataSrv) ImportData(ctx *gin.Context,importType,dateString string
 		tmp.Key = tmp.Symbol
 		tmp.UpdateTime = dt
 		tmp.BlacklistFlag = "-"
-		tempList = append(tempList,tmp)
+		tempList = append(tempList, tmp)
 	}
 
-	c.refreshBasicData(tempList,sCols,isAll)
-	c.refreshHistoryData(dateString,tempList)
-	CalculateTradeRaceTask()
+	c.refreshBasicData(tempList, sCols, isAll)
+	c.refreshHistoryData(dateString, tempList)
 	return
 }
 
-func (c *ImportDataSrv)updateFlag(sql string){
+func (c *ImportDataSrv) updateFlag(sql string) {
 	qc := orm.NewQuery()
 	qc.Exec(sql)
 	xerr.ThrowError(qc.Error)
 }
 
-func (c *ImportDataSrv)refreshBasicData(items []models.StockBasic,sCols map[string]string,isAll bool){
+func (c *ImportDataSrv) refreshBasicData(items []models.StockBasic, sCols map[string]string, isAll bool) {
 	// 待更新的symbols
 	var symbols []string
 	for _, item := range items {
-		symbols = append(symbols,item.Symbol)
+		symbols = append(symbols, item.Symbol)
 	}
 
 	// 获取原来的数据
 	var oldItems []models.StockBasic
-	q1 :=orm.NewQuery()
+	q1 := orm.NewQuery()
 	if isAll {
-		q1.GetItemWhere(&oldItems,"1=1")
-	}else{
-		q1.GetItemWhere(&oldItems,"symbol in (?)",symbols)
+		q1.GetItemWhere(&oldItems, "1=1")
+	} else {
+		q1.GetItemWhere(&oldItems, "symbol in (?)", symbols)
 	}
 
 	xerr.ThrowError(q1.Error)
@@ -168,32 +167,32 @@ func (c *ImportDataSrv)refreshBasicData(items []models.StockBasic,sCols map[stri
 
 	// 更新字段
 	var needInsertItems []models.StockBasic
-	for _,newItem := range items {
-		oldItem,ok := oldItemMap[newItem.Symbol]
+	for _, newItem := range items {
+		oldItem, ok := oldItemMap[newItem.Symbol]
 		if !ok {
 			// 如果不存在
-			if _,ok := sCols["is_block"];ok {
+			if _, ok := sCols["is_block"]; ok {
 				newItem.IsChina = global.LogicN
 				newItem.IsEtf = global.LogicN
 				newItem.IsHk = global.LogicN
 			}
-			if _,ok := sCols["is_china"];ok {
+			if _, ok := sCols["is_china"]; ok {
 				newItem.IsBlock = global.LogicN
 				newItem.IsEtf = global.LogicN
 				newItem.IsHk = global.LogicN
 			}
-			if _,ok := sCols["is_etf"];ok {
+			if _, ok := sCols["is_etf"]; ok {
 				newItem.IsBlock = global.LogicN
 				newItem.IsChina = global.LogicN
 				newItem.IsHk = global.LogicN
 			}
-			if _,ok := sCols["is_hk"];ok {
+			if _, ok := sCols["is_hk"]; ok {
 				newItem.IsEtf = global.LogicN
 				newItem.IsBlock = global.LogicN
 				newItem.IsChina = global.LogicN
 			}
-			needInsertItems = append(needInsertItems,newItem)
-		}else{
+			needInsertItems = append(needInsertItems, newItem)
+		} else {
 			// 更新字段
 			oldItem.ID = 0
 			oldItem.Name = newItem.Name
@@ -216,48 +215,47 @@ func (c *ImportDataSrv)refreshBasicData(items []models.StockBasic,sCols map[stri
 			oldItem.TradeAmount = newItem.TradeAmount
 			oldItem.UpdateTime = newItem.UpdateTime
 			oldItem.TradeDate = newItem.TradeDate
-			if _,ok := sCols["is_block"];ok {
+			if _, ok := sCols["is_block"]; ok {
 				oldItem.IsBlock = global.LogicY
 				oldItem.IsChina = global.LogicN
 				oldItem.IsEtf = global.LogicN
 				oldItem.IsHk = global.LogicN
 			}
-			if _,ok := sCols["is_hot"];ok {
+			if _, ok := sCols["is_hot"]; ok {
 				oldItem.IsHot = global.LogicY
 			}
-			if _,ok := sCols["is_china"];ok {
+			if _, ok := sCols["is_china"]; ok {
 				oldItem.IsChina = global.LogicY
 				oldItem.IsBlock = global.LogicN
 				oldItem.IsEtf = global.LogicN
 				oldItem.IsHk = global.LogicN
 			}
-			if _,ok := sCols["is_etf"];ok {
+			if _, ok := sCols["is_etf"]; ok {
 				oldItem.IsEtf = global.LogicY
 				oldItem.IsBlock = global.LogicN
 				oldItem.IsChina = global.LogicN
 				oldItem.IsHk = global.LogicN
 			}
-			if _,ok := sCols["is_hk"];ok {
+			if _, ok := sCols["is_hk"]; ok {
 				oldItem.IsHk = global.LogicY
 				oldItem.IsEtf = global.LogicN
 				oldItem.IsBlock = global.LogicN
 				oldItem.IsChina = global.LogicN
 			}
-			if _,ok := sCols["is_star"];ok {
+			if _, ok := sCols["is_star"]; ok {
 				oldItem.IsStar = global.LogicY
 			}
-			if _,ok := sCols["is_option"];ok {
+			if _, ok := sCols["is_option"]; ok {
 				oldItem.IsOption = global.LogicY
 			}
-			if _,ok := sCols["is_yestoday_hot"];ok {
+			if _, ok := sCols["is_yestoday_hot"]; ok {
 				oldItem.IsYestodayHot = global.LogicY
 				oldItem.IsYestodayHotDate = newItem.TradeDate
 			}
 
-			needInsertItems = append(needInsertItems,oldItem)
+			needInsertItems = append(needInsertItems, oldItem)
 		}
 	}
-
 
 	tx := orm.BeginTransaction()
 	defer tx.EndTransaction()
@@ -266,8 +264,8 @@ func (c *ImportDataSrv)refreshBasicData(items []models.StockBasic,sCols map[stri
 	q2 := tx.NewQuery()
 	if isAll {
 		q2.DeleteAll("delete from stock_basic")
-	}else{
-		if len(oldItems) >0 {
+	} else {
+		if len(oldItems) > 0 {
 			q2.DeleteItem(oldItems)
 		}
 	}
@@ -279,9 +277,9 @@ func (c *ImportDataSrv)refreshBasicData(items []models.StockBasic,sCols map[stri
 	xerr.ThrowError(q3.Error)
 }
 
-func (c *ImportDataSrv)checkSymbolExits(symbol string,data []map[string]interface{}){
+func (c *ImportDataSrv) checkSymbolExits(symbol string, data []map[string]interface{}) {
 	hasSymbol := "N"
-	for _, row :=range data {
+	for _, row := range data {
 		value := row["symbol"]
 		if value == symbol {
 			hasSymbol = "Y"
@@ -289,22 +287,22 @@ func (c *ImportDataSrv)checkSymbolExits(symbol string,data []map[string]interfac
 		}
 	}
 	if hasSymbol != "Y" {
-		xerr.ThrowErrorMessage("没有发现Symbol:%s",symbol)
+		xerr.ThrowErrorMessage("没有发现Symbol:%s", symbol)
 	}
 }
 
-func (c *ImportDataSrv)refreshHistoryData(dateString string,data []models.StockBasic){
+func (c *ImportDataSrv) refreshHistoryData(dateString string, data []models.StockBasic) {
 	var cols []string
-	cols = append(cols,"close_price")
-	cols = append(cols,"high_price")
-	cols = append(cols,"low_price")
-	cols = append(cols,"open_price")
-	cols = append(cols,"trade_amount")
+	cols = append(cols, "close_price")
+	cols = append(cols, "high_price")
+	cols = append(cols, "low_price")
+	cols = append(cols, "open_price")
+	cols = append(cols, "trade_amount")
 
-	tradeDate := time.Now().AddDate(0,0,-1)
+	tradeDate := time.Now().AddDate(0, 0, -1)
 	if dateString != "" {
 		tradeDate = utils.ParseShortTime(dateString)
-	}else{
+	} else {
 		dateString = tradeDate.Format("2006-01-02")
 	}
 
@@ -319,7 +317,7 @@ func (c *ImportDataSrv)refreshHistoryData(dateString string,data []models.StockB
 		item.TradeTime = dateString
 		item.TradeTimeD = tradeDate
 		item.TradeAmount = row.TradeAmount
-		items = append(items,item)
+		items = append(items, item)
 	}
 
 	var subRows []models.StockHistoryData
@@ -327,14 +325,14 @@ func (c *ImportDataSrv)refreshHistoryData(dateString string,data []models.StockB
 		subRows = append(subRows, row)
 		if len(subRows) == 500 {
 			qc := orm.NewQuery()
-			qc.UpdateOrInsertHistory(&subRows,[]string{})
+			qc.UpdateOrInsertHistory(&subRows, []string{})
 			subRows = nil
 			xerr.ThrowError(qc.Error)
 		}
 	}
 	if subRows != nil && len(subRows) > 0 {
 		qc := orm.NewQuery()
-		qc.UpdateOrInsertHistory(&subRows,cols)
+		qc.UpdateOrInsertHistory(&subRows, cols)
 		xerr.ThrowError(qc.Error)
 	}
 }
