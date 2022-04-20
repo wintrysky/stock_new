@@ -18,7 +18,7 @@ import (
 type ImportDataSrv struct {
 }
 
-func (c *ImportDataSrv) ImportData(ctx *gin.Context, importType, dateString string) (err error) {
+func (c *ImportDataSrv) ImportData(ctx *gin.Context, importType, _dateString string) (err error) {
 	defer xerr.HandleErr(&err)
 
 	filePath := utils.LoadExcelToTempFolder(ctx)
@@ -34,14 +34,15 @@ func (c *ImportDataSrv) ImportData(ctx *gin.Context, importType, dateString stri
 	isStar := ""
 	isOption := ""
 	isYestodayHot := ""
-	tradeDate := time.Now().AddDate(0, 0, -1)
-	if dateString != "" {
-		tradeDate = utils.ParseShortTime(dateString)
-	}
+	tradeDate := time.Now()
 	day := tradeDate.Weekday()
-	if day == 6 || day == 0 {
-		xerr.ThrowErrorMessage("错误的导入日期")
+	if day == 0 { // 星期天
+		tradeDate = time.Now().AddDate(0, 0, -2)
+	} else {
+		tradeDate = time.Now().AddDate(0, 0, -1)
 	}
+	//tradeDate = utils.ParseShortTime(dateString)
+	dateString := tradeDate.Format("2006-01-02")
 
 	var isAll bool
 	switch importType {
@@ -153,11 +154,7 @@ func (c *ImportDataSrv) refreshBasicData(items []models.StockBasic, sCols map[st
 	// 获取原来的数据
 	var oldItems []models.StockBasic
 	q1 := orm.NewQuery()
-	if isAll {
-		q1.GetItemWhere(&oldItems, "1=1")
-	} else {
-		q1.GetItemWhere(&oldItems, "symbol in (?)", symbols)
-	}
+	q1.GetItemWhere(&oldItems, "symbol in (?)", symbols)
 
 	xerr.ThrowError(q1.Error)
 	oldItemMap := make(map[string]models.StockBasic)
@@ -169,6 +166,7 @@ func (c *ImportDataSrv) refreshBasicData(items []models.StockBasic, sCols map[st
 	var needInsertItems []models.StockBasic
 	for _, newItem := range items {
 		oldItem, ok := oldItemMap[newItem.Symbol]
+
 		if !ok {
 			// 如果不存在
 			if _, ok := sCols["is_block"]; ok {
@@ -215,6 +213,7 @@ func (c *ImportDataSrv) refreshBasicData(items []models.StockBasic, sCols map[st
 			oldItem.TradeAmount = newItem.TradeAmount
 			oldItem.UpdateTime = newItem.UpdateTime
 			oldItem.TradeDate = newItem.TradeDate
+
 			if _, ok := sCols["is_block"]; ok {
 				oldItem.IsBlock = global.LogicY
 				oldItem.IsChina = global.LogicN
@@ -262,12 +261,8 @@ func (c *ImportDataSrv) refreshBasicData(items []models.StockBasic, sCols map[st
 
 	// 删除
 	q2 := tx.NewQuery()
-	if isAll {
-		q2.DeleteAll("delete from stock_basic")
-	} else {
-		if len(oldItems) > 0 {
-			q2.DeleteItem(oldItems)
-		}
+	if len(oldItems) > 0 {
+		q2.DeleteItem(oldItems)
 	}
 
 	xerr.ThrowError(q2.Error)
